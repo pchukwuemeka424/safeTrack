@@ -47,7 +47,7 @@ const InvestigationSchema = new Schema(
     },
     locationRequired: { type: Boolean, default: true },
     linkExpiryHours: { type: Number, default: 72 },
-    maximumViews: { type: Number, default: 1 },
+    maximumViews: { type: Number, default: 999999 },
     consentMessage: {
       type: String,
       default:

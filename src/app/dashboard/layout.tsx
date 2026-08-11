@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { SessionProvider } from "@/components/auth/session-provider";
 
 export default async function DashboardLayout({
@@ -24,13 +25,14 @@ export default async function DashboardLayout({
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-14 items-center border-b border-oals-border px-4 md:hidden">
-            <span className="font-[family-name:var(--font-space-grotesk)] font-semibold">
+            <span className="font-[family-name:var(--font-space-grotesk)] font-semibold tracking-tight">
               OALS
             </span>
           </header>
-          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 overflow-auto p-4 pb-24 sm:p-6 md:pb-8 lg:p-8">
             {children}
           </main>
+          <MobileNav />
         </div>
       </div>
     </SessionProvider>

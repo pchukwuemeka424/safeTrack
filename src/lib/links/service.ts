@@ -50,7 +50,7 @@ export async function createInvestigationLink(input: {
     createdBy: new mongoose.Types.ObjectId(input.createdBy),
     status: "ACTIVE",
     expiresAt,
-    maximumViews: input.investigation.maximumViews || 1,
+    maximumViews: 999999,
     currentViews: 0,
     locationRequired: input.investigation.locationRequired !== false,
     allowViewWithoutLocation: Boolean(input.investigation.allowViewWithoutLocation),
@@ -71,7 +71,6 @@ export type PublicLinkState =
   | { status: "INVALID" }
   | { status: "EXPIRED" }
   | { status: "REVOKED" }
-  | { status: "MAX_VIEWS" }
   | {
       status: "ACTIVE";
       shortCode: string;
@@ -107,11 +106,16 @@ export async function getPublicLinkState(shortCode: string): Promise<PublicLinkS
     return { status: "EXPIRED" };
   }
 
-  if (
-    lean.status === "MAX_VIEWS" ||
-    lean.currentViews >= lean.maximumViews
-  ) {
-    return { status: "MAX_VIEWS" };
+  // Legacy MAX_VIEWS links are reopened — view caps are no longer enforced
+  if (lean.status === "MAX_VIEWS") {
+    await InvestigationLink.updateOne(
+      { _id: lean._id },
+      { $set: { status: "ACTIVE" } },
+    );
+  }
+
+  if (lean.status !== "ACTIVE" && lean.status !== "MAX_VIEWS") {
+    return { status: "INVALID" };
   }
 
   return {

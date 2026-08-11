@@ -85,8 +85,17 @@ export async function createSignedImageToken(
   variant: "original" | "blur" | "thumbnail",
   ttlSeconds = env.signedImageTtlSeconds,
 ): Promise<string> {
+  return createSignedMediaToken(imageId, "asset", variant, ttlSeconds);
+}
+
+export async function createSignedMediaToken(
+  mediaId: string,
+  kind: "asset" | "capture",
+  variant: "original" | "blur" | "thumbnail",
+  ttlSeconds = env.signedImageTtlSeconds,
+): Promise<string> {
   const secret = new TextEncoder().encode(env.authSecret);
-  return new SignJWT({ imageId, variant })
+  return new SignJWT({ mediaId, imageId: mediaId, kind, variant })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${ttlSeconds}s`)
@@ -95,11 +104,18 @@ export async function createSignedImageToken(
 
 export async function verifySignedImageToken(
   token: string,
-): Promise<{ imageId: string; variant: "original" | "blur" | "thumbnail" }> {
+): Promise<{
+  imageId: string;
+  kind: "asset" | "capture";
+  variant: "original" | "blur" | "thumbnail";
+}> {
   const secret = new TextEncoder().encode(env.authSecret);
   const { payload } = await jwtVerify(token, secret);
+  const kind =
+    payload.kind === "capture" ? "capture" : ("asset" as const);
   return {
-    imageId: String(payload.imageId),
+    imageId: String(payload.mediaId || payload.imageId),
+    kind,
     variant: payload.variant as "original" | "blur" | "thumbnail",
   };
 }

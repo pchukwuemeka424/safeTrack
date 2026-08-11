@@ -4,6 +4,7 @@ export { ImageAsset } from "./ImageAsset";
 export { InvestigationLink } from "./InvestigationLink";
 export { AccessEvent } from "./AccessEvent";
 export { LocationEvent } from "./LocationEvent";
+export { CapturedMedia } from "./CapturedMedia";
 export { AuditLog } from "./AuditLog";
 export { Evidence } from "./Evidence";
 export { Notification } from "./Notification";

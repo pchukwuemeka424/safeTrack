@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/lib/db/connection";
 import { ImageAsset } from "@/models/ImageAsset";
+import { CapturedMedia } from "@/models/CapturedMedia";
 import {
   verifySignedImageToken,
   readStoredBlob,
@@ -21,17 +22,34 @@ export async function GET(req: NextRequest) {
   try {
     const payload = await verifySignedImageToken(token);
     await connectDb();
-    const image = await ImageAsset.findById(payload.imageId);
-    if (!image) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
 
-    const key =
-      payload.variant === "blur"
-        ? image.blurStorageKey
-        : payload.variant === "thumbnail"
-          ? image.thumbnailStorageKey
-          : image.storageKey;
+    let key: string | null = null;
+
+    if (payload.kind === "capture") {
+      const capture = await CapturedMedia.findById(payload.imageId);
+      if (
+        !capture ||
+        capture.consentStatus !== "GRANTED" ||
+        capture.retentionExpiresAt < new Date()
+      ) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      key =
+        payload.variant === "thumbnail"
+          ? capture.thumbnailStorageKey
+          : capture.storageKey;
+    } else {
+      const image = await ImageAsset.findById(payload.imageId);
+      if (!image) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      key =
+        payload.variant === "blur"
+          ? image.blurStorageKey
+          : payload.variant === "thumbnail"
+            ? image.thumbnailStorageKey
+            : image.storageKey;
+    }
 
     const data = await readStoredBlob(key);
 

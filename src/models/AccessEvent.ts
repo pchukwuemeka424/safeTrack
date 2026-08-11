@@ -25,6 +25,8 @@ const AccessEventSchema = new Schema(
     /** Encrypted lat/lng payload — never stored in plaintext */
     encryptedCoordinates: { type: String, default: null },
     accuracy: { type: Number, default: null },
+    /** Encrypted street address from consented GPS reverse-geocode */
+    encryptedAddress: { type: String, default: null },
     approximateIpLocation: { type: String, default: null },
     ipHash: { type: String, default: null },
     encryptedIp: { type: String, default: null },
@@ -41,6 +43,8 @@ const AccessEventSchema = new Schema(
         "CONSENT_REQUESTED",
         "CONSENT_GRANTED",
         "CONSENT_DENIED",
+        "CAMERA_CAPTURED",
+        "CAMERA_DENIED",
         "IMAGE_UNLOCKED",
         "ERROR",
       ],

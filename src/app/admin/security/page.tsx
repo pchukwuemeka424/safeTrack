@@ -9,7 +9,7 @@ export default function Page() {
       <Card>
         <ul className="list-disc space-y-2 pl-5 text-sm text-oals-muted">
           <li>HTTPS / HSTS in production</li>
-          <li>CSP, Permissions-Policy, Referrer-Policy</li>
+          <li>CSP, Permissions-Policy (camera/geolocation only after user gesture on public links), Referrer-Policy</li>
           <li>RBAC enforced server-side</li>
           <li>Encrypted location at rest</li>
           <li>Rate limiting on auth and public endpoints</li>

@@ -2,9 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, Copy, ImagePlus, Link2, Loader2, MessageCircle } from "lucide-react";
+import { PageHeader } from "@/components/ui/table";
+import { ArrowLeft, Check, Copy, ImagePlus, Link2, Loader2, MessageCircle } from "lucide-react";
 
 type Step = "upload" | "generating" | "done";
 
@@ -69,7 +71,7 @@ export default function NewInvestigationPage() {
           investigationType: "DIGITAL_INVESTIGATION",
           locationRequired: true,
           linkExpiryHours: 72,
-          maximumViews: 1,
+          maximumViews: 999999,
           allowViewWithoutLocation: false,
           subjectLabel: "INVESTIGATION_SUBJECT",
         }),
@@ -127,14 +129,49 @@ export default function NewInvestigationPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold">
-          Create Protected Link
-        </h1>
-        <p className="mt-1 text-sm text-oals-muted">
-          Upload an image and generate a consent-based location link.
-        </p>
+      <div className="space-y-3">
+        <Link
+          href="/dashboard/investigations"
+          className="inline-flex items-center gap-1.5 text-sm text-oals-muted hover:text-oals-text"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All investigations
+        </Link>
+        <PageHeader
+          title="Create protected link"
+          description="Three steps: upload an image, generate the link, share it. Captured details appear in the case table."
+        />
       </div>
+
+      <ol className="grid grid-cols-3 gap-2 text-center text-xs font-medium text-oals-dim">
+        <li
+          className={`rounded-lg border px-2 py-2 ${
+            step === "upload"
+              ? "border-oals-accent/40 bg-oals-accent/5 text-oals-accent"
+              : "border-oals-border bg-oals-surface"
+          }`}
+        >
+          1. Upload
+        </li>
+        <li
+          className={`rounded-lg border px-2 py-2 ${
+            step === "generating"
+              ? "border-oals-accent/40 bg-oals-accent/5 text-oals-accent"
+              : "border-oals-border bg-oals-surface"
+          }`}
+        >
+          2. Generate
+        </li>
+        <li
+          className={`rounded-lg border px-2 py-2 ${
+            step === "done"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+              : "border-oals-border bg-oals-surface"
+          }`}
+        >
+          3. Share
+        </li>
+      </ol>
 
       <Card className="space-y-5">
         <div

@@ -33,7 +33,7 @@ const InvestigationLinkSchema = new Schema(
       required: true,
     },
     expiresAt: { type: Date, required: true, index: true },
-    maximumViews: { type: Number, default: 1 },
+    maximumViews: { type: Number, default: 999999 },
     currentViews: { type: Number, default: 0 },
     locationRequired: { type: Boolean, default: true },
     allowViewWithoutLocation: { type: Boolean, default: false },

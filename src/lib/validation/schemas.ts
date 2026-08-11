@@ -31,7 +31,7 @@ export const createInvestigationSchema = z.object({
   ]),
   locationRequired: z.boolean().default(true),
   linkExpiryHours: z.number().int().min(1).max(720).default(72),
-  maximumViews: z.number().int().min(1).max(100).default(1),
+  maximumViews: z.number().int().min(1).max(999999).default(999999),
   consentMessage: z.string().min(20).max(1000).optional(),
   allowViewWithoutLocation: z.boolean().default(false),
   subjectLabel: z

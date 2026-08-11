@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   FolderSearch,
   Link2,
+  Activity,
   Shield,
   LogOut,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const nav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/investigations", label: "Investigations", icon: FolderSearch },
   { href: "/dashboard/links", label: "Links", icon: Link2 },
+  { href: "/dashboard/access-events", label: "Access events", icon: Activity },
 ];
 
 export function DashboardSidebar({

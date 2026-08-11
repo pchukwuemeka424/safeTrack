@@ -26,6 +26,9 @@ const LocationEventSchema = new Schema(
     encryptedCoordinates: { type: String, required: true },
     /** Encrypted reverse-geocoded address derived from consented coordinates */
     encryptedAddress: { type: String, default: null },
+    houseNumber: { type: String, default: null },
+    street: { type: String, default: null },
+    postcode: { type: String, default: null },
     city: { type: String, default: null },
     country: { type: String, default: null },
     accuracy: { type: Number, required: true },

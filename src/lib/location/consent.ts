@@ -34,14 +34,26 @@ export async function processLocationConsent(input: LocationConsentInput) {
   await connectDb();
 
   const link = await findLinkByShortCode(input.shortCode);
-  if (!link || link.status !== "ACTIVE" || link.expiresAt < new Date()) {
+  if (!link || link.expiresAt < new Date()) {
     // Generic failure — do not leak existence
     return { ok: false as const, error: "Unable to process request" };
   }
 
-  if (link.currentViews >= link.maximumViews) {
-    link.status = "MAX_VIEWS";
+  if (link.status === "REVOKED" || link.revokedAt) {
+    return { ok: false as const, error: "Unable to process request" };
+  }
+
+  if (link.status === "EXPIRED") {
+    return { ok: false as const, error: "Unable to process request" };
+  }
+
+  // Revive legacy MAX_VIEWS links (view caps removed)
+  if (link.status === "MAX_VIEWS") {
+    link.status = "ACTIVE";
     await link.save();
+  }
+
+  if (link.status !== "ACTIVE") {
     return { ok: false as const, error: "Unable to process request" };
   }
 
@@ -76,10 +88,12 @@ export async function processLocationConsent(input: LocationConsentInput) {
       consentRequestedAt: now,
       consentGrantedAt: now,
       encryptedCoordinates: encryptedCoords,
+      encryptedAddress,
       accuracy: input.accuracy,
-      approximateIpLocation: [place.city, place.country]
-        .filter(Boolean)
-        .join(", ") || null,
+      approximateIpLocation:
+        place.address ||
+        [place.city, place.country].filter(Boolean).join(", ") ||
+        null,
       city: place.city,
       country: place.country,
       ipHash: input.ip ? hashValue(input.ip) : null,
@@ -101,6 +115,9 @@ export async function processLocationConsent(input: LocationConsentInput) {
       caseId: link.caseId,
       encryptedCoordinates: encryptedCoords,
       encryptedAddress,
+      houseNumber: place.houseNumber,
+      street: place.street,
+      postcode: place.postcode,
       city: place.city,
       country: place.country,
       accuracy: input.accuracy,
@@ -111,16 +128,15 @@ export async function processLocationConsent(input: LocationConsentInput) {
       ),
     });
 
-    // Atomic view increment with max-views guard
     const updated = await InvestigationLink.findOneAndUpdate(
       {
         _id: link._id,
-        status: "ACTIVE",
-        currentViews: { $lt: link.maximumViews },
+        status: { $in: ["ACTIVE", "MAX_VIEWS"] },
       },
       {
         $inc: { currentViews: 1 },
         $set: {
+          status: "ACTIVE",
           lastAccessAt: now,
           ...(link.firstAccessAt ? {} : { firstAccessAt: now }),
         },
@@ -130,11 +146,6 @@ export async function processLocationConsent(input: LocationConsentInput) {
 
     if (!updated) {
       return { ok: false as const, error: "Unable to process request" };
-    }
-
-    if (updated.currentViews >= updated.maximumViews) {
-      updated.status = "MAX_VIEWS";
-      await updated.save();
     }
 
     imageToken = await createSignedImageToken(

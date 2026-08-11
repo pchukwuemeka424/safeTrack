@@ -33,7 +33,7 @@ function applySecurityHeaders(response: NextResponse) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set(
     "Permissions-Policy",
-    "geolocation=(self), camera=(), microphone=(), interest-cohort=()",
+    "geolocation=(self), camera=(self), microphone=(), interest-cohort=()",
   );
   response.headers.set(
     "Content-Security-Policy",
@@ -42,6 +42,7 @@ function applySecurityHeaders(response: NextResponse) {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.mapbox.com",
       "style-src 'self' 'unsafe-inline' https://api.mapbox.com https://unpkg.com",
       "img-src 'self' data: blob: https: https://*.tile.openstreetmap.org",
+      "media-src 'self' blob:",
       "font-src 'self' data:",
       "connect-src 'self' https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.public.blob.vercel-storage.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
       "worker-src 'self' blob:",

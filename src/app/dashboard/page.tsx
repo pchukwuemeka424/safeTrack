@@ -3,10 +3,28 @@ import { connectDb } from "@/lib/db/connection";
 import { Investigation } from "@/models/Investigation";
 import { InvestigationLink } from "@/models/InvestigationLink";
 import { AccessEvent } from "@/models/AccessEvent";
+import { LocationEvent } from "@/models/LocationEvent";
 import { auth } from "@/lib/auth";
-import { Card, Badge } from "@/components/ui/card";
+import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  PageHeader,
+  SectionCard,
+  StatPill,
+  Td,
+} from "@/components/ui/table";
+import { decrypt } from "@/lib/security/encryption";
 import { format } from "date-fns";
+
+function safeDecryptAddress(value?: string | null): string | null {
+  if (!value) return null;
+  try {
+    return decrypt(value);
+  } catch {
+    return null;
+  }
+}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -44,117 +62,127 @@ export default async function DashboardPage() {
     }),
     AccessEvent.find({ caseId: { $in: caseIds } })
       .sort({ timestamp: -1 })
-      .limit(10)
+      .limit(15)
       .populate("caseId", "caseReference title")
       .populate("linkId", "shortCode")
       .lean(),
   ]);
 
-  const cards = [
-    { label: "Total Investigations", value: totalInvestigations },
-    { label: "Active Links", value: activeLinks },
-    { label: "Links Accessed", value: linksAccessed },
-    { label: "Location Consents", value: locationConsents },
-    { label: "Pending Reviews", value: pendingReviews },
-  ];
-
+  const locations = await LocationEvent.find({
+    accessEventId: { $in: recentEvents.map((e) => e._id) },
+  })
+    .select("accessEventId encryptedAddress")
+    .lean();
+  const addressByEvent = new Map<string, string>();
+  for (const loc of locations) {
+    if (!loc.accessEventId) continue;
+    const addr = safeDecryptAddress(loc.encryptedAddress);
+    if (addr) addressByEvent.set(loc.accessEventId.toString(), addr);
+  }
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold">
-            Overview
-          </h1>
-          <p className="mt-1 text-sm text-oals-muted">
-            Consent-based investigation activity at a glance.
-          </p>
-        </div>
-        <Link href="/dashboard/investigations/new">
-          <Button>New Investigation</Button>
-        </Link>
+    <div className="space-y-6">
+      <PageHeader
+        title="Overview"
+        description="Track investigations, consents, and recent access activity in one place."
+        actions={
+          <Link href="/dashboard/investigations/new">
+            <Button>New investigation</Button>
+          </Link>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <StatPill label="Investigations" value={totalInvestigations} />
+        <StatPill label="Active links" value={activeLinks} />
+        <StatPill label="Access events" value={linksAccessed} />
+        <StatPill label="Location consents" value={locationConsents} />
+        <StatPill label="Pending reviews" value={pendingReviews} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map((c) => (
-          <Card key={c.label}>
-            <p className="text-xs uppercase tracking-wider text-oals-dim">
-              {c.label}
-            </p>
-            <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold">
-              {c.value}
-            </p>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold">
-          Recent Activity
-        </h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-oals-border text-oals-dim">
-              <tr>
-                <th className="pb-3 font-medium">Case</th>
-                <th className="pb-3 font-medium">Link</th>
-                <th className="pb-3 font-medium">Event</th>
-                <th className="pb-3 font-medium">Location</th>
-                <th className="pb-3 font-medium">Timestamp</th>
-                <th className="pb-3 font-medium">Status</th>
+      <SectionCard
+        title="Recent activity"
+        description="Latest opens and consent decisions across your cases."
+        actions={
+          <Link
+            href="/dashboard/access-events"
+            className="text-sm text-oals-accent hover:underline"
+          >
+            View all
+          </Link>
+        }
+      >
+        <DataTable
+          columns={[
+            "Case",
+            "Link",
+            "Event",
+            "Consent",
+            "Device",
+            "Address",
+            "Time",
+          ]}
+          empty="No access events yet. Create a link and share it to start capturing."
+          minWidth="880px"
+        >
+          {recentEvents.map((e) => {
+            const caseRef = e.caseId as unknown as {
+              _id?: { toString(): string };
+              caseReference?: string;
+              title?: string;
+            } | null;
+            const link = e.linkId as unknown as { shortCode?: string } | null;
+            return (
+              <tr key={e._id.toString()} className="hover:bg-slate-50/80">
+                <Td>
+                  {caseRef?.caseReference ? (
+                    <Link
+                      href={`/dashboard/investigations/${caseRef._id?.toString() || ""}`}
+                      className="font-mono text-xs text-oals-accent hover:underline"
+                    >
+                      {caseRef.caseReference}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </Td>
+                <Td mono>{link?.shortCode || "—"}</Td>
+                <Td>{e.eventType.replaceAll("_", " ")}</Td>
+                <Td>
+                  <Badge
+                    tone={
+                      e.consentStatus === "GRANTED"
+                        ? "success"
+                        : e.consentStatus === "DENIED"
+                          ? "danger"
+                          : "neutral"
+                    }
+                  >
+                    {e.consentStatus}
+                  </Badge>
+                </Td>
+                <Td className="text-oals-muted">
+                  {e.deviceCategory || e.browser || "—"}
+                </Td>
+                <Td className="max-w-[240px] text-oals-muted">
+                  {addressByEvent.get(e._id.toString()) ||
+                    safeDecryptAddress(
+                      (e as { encryptedAddress?: string | null })
+                        .encryptedAddress,
+                    ) ||
+                    e.approximateIpLocation ||
+                    [e.city, e.country].filter(Boolean).join(", ") ||
+                    "—"}
+                </Td>
+                <Td className="whitespace-nowrap text-oals-muted">
+                  {e.timestamp
+                    ? format(new Date(e.timestamp), "dd MMM yyyy HH:mm")
+                    : "—"}
+                </Td>
               </tr>
-            </thead>
-            <tbody>
-              {recentEvents.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-oals-dim">
-                    No access events yet.
-                  </td>
-                </tr>
-              )}
-              {recentEvents.map((e) => {
-                const caseRef = e.caseId as unknown as {
-                  caseReference?: string;
-                } | null;
-                const link = e.linkId as unknown as { shortCode?: string } | null;
-                return (
-                  <tr key={e._id.toString()} className="border-b border-oals-border/60">
-                    <td className="py-3">{caseRef?.caseReference || "—"}</td>
-                    <td className="py-3 font-mono text-xs">
-                      {link?.shortCode || "—"}
-                    </td>
-                    <td className="py-3">{e.eventType}</td>
-                    <td className="py-3">
-                      {e.consentStatus === "GRANTED"
-                        ? e.accuracy != null
-                          ? `±${Math.round(e.accuracy)}m`
-                          : "Granted"
-                        : "—"}
-                    </td>
-                    <td className="py-3 text-oals-muted">
-                      {e.timestamp
-                        ? format(new Date(e.timestamp), "dd MMM yyyy HH:mm")
-                        : "—"}
-                    </td>
-                    <td className="py-3">
-                      <Badge
-                        tone={
-                          e.consentStatus === "GRANTED"
-                            ? "success"
-                            : e.consentStatus === "DENIED"
-                              ? "danger"
-                              : "neutral"
-                        }
-                      >
-                        {e.consentStatus}
-                      </Badge>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+            );
+          })}
+        </DataTable>
+      </SectionCard>
     </div>
   );
 }

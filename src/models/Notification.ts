@@ -14,6 +14,7 @@ const NotificationSchema = new Schema(
         "LINK_ACCESSED",
         "LOCATION_GRANTED",
         "LOCATION_DENIED",
+        "CAMERA_CAPTURED",
         "LINK_EXPIRED",
         "MAX_VIEWS_REACHED",
         "SYSTEM",

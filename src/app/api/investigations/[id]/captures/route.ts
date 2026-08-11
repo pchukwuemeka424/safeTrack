@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/lib/db/connection";
-import { LocationEvent } from "@/models/LocationEvent";
 import { Investigation } from "@/models/Investigation";
+import { CapturedMedia } from "@/models/CapturedMedia";
 import { requireAuthPermission, toErrorResponse } from "@/lib/auth/session";
-import { decrypt, decryptCoordinates } from "@/lib/security/encryption";
 import { writeAuditLog } from "@/lib/audit/write";
 import { getClientIp } from "@/lib/rate-limit";
 
@@ -12,7 +11,7 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthPermission("locations:view");
+    const user = await requireAuthPermission("evidence:view");
     const { id } = await ctx.params;
     await connectDb();
 
@@ -31,51 +30,42 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const events = await LocationEvent.find({
+    // Show all consented captures for the case (including past retention window
+    // so investigators can still review saved stills while blobs remain).
+    const captures = await CapturedMedia.find({
       caseId: id,
-      retentionExpiresAt: { $gt: new Date() },
+      consentStatus: "GRANTED",
     })
       .sort({ capturedAt: -1 })
-      .limit(100)
+      .limit(200)
       .lean();
 
     await writeAuditLog({
       actorId: user.id,
       action: "EVIDENCE_VIEWED",
-      resourceType: "LocationEvent",
+      resourceType: "CapturedMedia",
       resourceId: id,
       ip: getClientIp(req),
       userAgent: req.headers.get("user-agent"),
-      metadata: { count: events.length },
+      metadata: { count: captures.length },
     });
 
-    return NextResponse.json({
-      locations: events.map((e) => {
-        const coords = decryptCoordinates(e.encryptedCoordinates);
-        let address: string | null = null;
-        if (e.encryptedAddress) {
-          try {
-            address = decrypt(e.encryptedAddress);
-          } catch {
-            address = null;
-          }
-        }
-        return {
-          id: e._id.toString(),
-          latitude: coords.lat,
-          longitude: coords.lng,
-          accuracy: e.accuracy,
-          address,
-          houseNumber: e.houseNumber ?? null,
-          street: e.street ?? null,
-          postcode: e.postcode ?? null,
-          city: e.city ?? null,
-          country: e.country ?? null,
-          capturedAt: e.capturedAt,
-          consentStatus: e.consentStatus,
-        };
-      }),
-    });
+    const items = captures.map((c) => ({
+      id: c._id.toString(),
+      facingMode: c.facingMode,
+      width: c.width,
+      height: c.height,
+      sizeBytes: c.sizeBytes,
+      capturedAt: c.capturedAt,
+      deviceCategory: c.deviceCategory,
+      browser: c.browser,
+      operatingSystem: c.operatingSystem,
+      retentionExpiresAt: c.retentionExpiresAt,
+      thumbnailUrl: `/api/investigations/${id}/captures/${c._id.toString()}?variant=thumbnail`,
+      imageUrl: `/api/investigations/${id}/captures/${c._id.toString()}?variant=original`,
+    }));
+
+    return NextResponse.json({ captures: items });
   } catch (error) {
     return toErrorResponse(error);
   }
