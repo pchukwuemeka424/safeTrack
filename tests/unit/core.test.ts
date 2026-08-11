@@ -13,13 +13,13 @@ import { analyzeInvestigation } from "@/lib/ai/analyze";
 
 describe("hostname short-code extraction", () => {
   it("extracts code from wildcard subdomain", () => {
-    expect(extractShortCodeFromHost("x7k29.oals.online")).toBe("x7k29");
+    expect(extractShortCodeFromHost("x7k29.mylos.cyou")).toBe("x7k29");
   });
 
   it("returns null for root and app hosts", () => {
-    expect(extractShortCodeFromHost("oals.online")).toBeNull();
-    expect(extractShortCodeFromHost("app.oals.online")).toBeNull();
-    expect(extractShortCodeFromHost("www.oals.online")).toBeNull();
+    expect(extractShortCodeFromHost("mylos.cyou")).toBeNull();
+    expect(extractShortCodeFromHost("app.mylos.cyou")).toBeNull();
+    expect(extractShortCodeFromHost("www.mylos.cyou")).toBeNull();
   });
 
   it("supports localhost development subdomains", () => {
@@ -34,7 +34,7 @@ describe("hostname short-code extraction", () => {
 
   it("builds link URLs", () => {
     const url = buildLinkUrl("x7k29");
-    expect(url).toContain("x7k29.");
+    expect(url).toContain("/l/x7k29");
   });
 });
 

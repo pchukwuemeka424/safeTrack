@@ -31,7 +31,7 @@ export const env = {
   ),
   emailProvider: optional("EMAIL_PROVIDER", "resend"),
   resendApiKey: optional("RESEND_API_KEY"),
-  emailFrom: optional("EMAIL_FROM", "OALS <noreply@oals.online>"),
+  emailFrom: optional("EMAIL_FROM", "OALS <noreply@mylos.cyou>"),
   storeRawIp: optional("STORE_RAW_IP", "false") === "true",
   defaultRetentionDays: Number(optional("DEFAULT_RETENTION_DAYS", "7")),
   maxUploadBytes: Number(optional("MAX_UPLOAD_BYTES", String(10 * 1024 * 1024))),

@@ -98,6 +98,11 @@ export async function POST(
       sizeBytes: image.sizeBytes,
     });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Upload failed";
+    if (message.includes("BLOB_READ_WRITE_TOKEN")) {
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
     return toErrorResponse(error);
   }
 }

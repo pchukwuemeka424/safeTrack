@@ -19,9 +19,9 @@ function codeFromHostname(): string {
   if (hostname.endsWith(".localhost") && hostname !== "localhost") {
     return hostname.replace(/\.localhost$/, "");
   }
-  // production: {code}.oals.online
+  // production: {code}.mylos.cyou
   const parts = hostname.split(".");
-  if (parts.length >= 3 && parts.slice(-2).join(".") === "oals.online") {
+  if (parts.length >= 3 && parts.slice(-2).join(".") === "mylos.cyou") {
     const sub = parts[0];
     if (sub && sub !== "www" && sub !== "app") return sub;
   }

@@ -69,7 +69,7 @@ export default function PrivacyPage() {
           <p className="text-oals-muted leading-relaxed">
             Authorised administrators can configure retention and delete case
             data according to organisational policy. Contact your organisation
-            administrator or email privacy@oals.online for privacy requests.
+            administrator or email privacy@mylos.cyou for privacy requests.
           </p>
         </section>
 

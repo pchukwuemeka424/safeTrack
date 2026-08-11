@@ -31,6 +31,12 @@ export async function storePrivateBlob(
     return blob.url;
   }
 
+  if (env.isProd) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is required in production. Enable Vercel Blob and set the token.",
+    );
+  }
+
   // Local filesystem fallback for development
   const dir = await ensureLocalDir("private");
   const filePath = path.join(dir, path.basename(key));

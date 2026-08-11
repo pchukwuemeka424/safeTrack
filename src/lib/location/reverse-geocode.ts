@@ -172,7 +172,7 @@ async function reverseGeocodeNominatim(
     headers: {
       Accept: "application/json",
       "User-Agent":
-        "OALS-LocationSafeguarding/1.0 (investigation; contact@oals.online)",
+        "OALS-LocationSafeguarding/1.0 (investigation; contact@mylos.cyou)",
     },
     signal: AbortSignal.timeout(8000),
   });

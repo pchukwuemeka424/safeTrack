@@ -2,8 +2,9 @@
 
 Consent-based investigation platform for authorised investigators.
 
-**Domain:** https://oals.online  
-**Protected links:** https://{shortCode}.oals.online
+**Domain:** https://mylos.cyou  
+**Protected links:** https://mylos.cyou/l/{shortCode}  
+(Optional subdomain mode: https://{shortCode}.mylos.cyou when wildcard DNS is configured)
 
 OALS lets investigators create cases, upload evidence images, generate unique subdomain links, and collect **one-time browser location only after explicit user consent**. It does not secretly track people, bypass permissions, or declare criminal status via AI.
 
@@ -14,7 +15,7 @@ OALS lets investigators create cases, upload evidence images, generate unique su
 - Auth.js (NextAuth) credentials auth with roles: `ADMIN`, `INVESTIGATOR`, `REVIEWER`
 - Investigation cases with neutral subject terminology
 - Secure image upload (MIME + magic-byte validation, EXIF strip, blur + thumbnail)
-- Cryptographically secure short codes on `*.oals.online`
+- Cryptographically secure short codes on `*.mylos.cyou`
 - Public consent flow using the browser Geolocation API (click-to-request only)
 - Encrypted location storage, RBAC-gated map view, retention controls
 - Audit logging, rate limiting, security headers
@@ -67,8 +68,10 @@ Set these in `.env.local`. Critical values:
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `AUTH_SECRET` | Auth.js session secret (≥32 chars) |
 | `ENCRYPTION_KEY` | 64-char hex key for AES-256-GCM |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (optional in dev) |
-| `NEXT_PUBLIC_ROOT_DOMAIN` | `oals.online` (or `localhost:3000` for local) |
+| `NEXT_PUBLIC_ROOT_DOMAIN` | `mylos.cyou` (or `localhost:3000` for local) |
+| `NEXT_PUBLIC_APP_URL` | Public app origin, e.g. `https://mylos.cyou` |
+| `NEXT_PUBLIC_USE_SUBDOMAIN_LINKS` | `true` only if `*.mylos.cyou` wildcard is live |
+| `BLOB_READ_WRITE_TOKEN` | **Required on Vercel** for image upload / link generation |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Map rendering in dashboard |
 | `RESEND_API_KEY` | Transactional email (optional) |
 | `STORE_RAW_IP` | `false` by default — hashed IPs only |
@@ -81,9 +84,9 @@ Never commit secrets.
 ## DNS / Vercel domain setup
 
 1. Create a Vercel project and import this repository.
-2. Add domain `oals.online`.
-3. Add wildcard domain `*.oals.online`.
-4. Optionally add `app.oals.online` for the dashboard entrypoint.
+2. Add domain `mylos.cyou`.
+3. Add wildcard domain `*.mylos.cyou`.
+4. Optionally add `app.mylos.cyou` for the dashboard entrypoint.
 5. Configure DNS as prompted by Vercel (typically ALIAS/ANAME/CNAME to Vercel).
 
 One deployment serves all short-code subdomains. Do **not** create a project per link.
@@ -96,7 +99,7 @@ One deployment serves all short-code subdomains. Do **not** create a project per
 2. **Vercel project** — connect repo, set all env vars  
 3. **Object storage** — enable Vercel Blob or S3-compatible store  
 4. **Domains** — apex + wildcard + optional `app` subdomain  
-5. **Auth** — set `AUTH_SECRET`, `NEXTAUTH_URL=https://oals.online`, `AUTH_TRUST_HOST=true`  
+5. **Auth** — set `AUTH_SECRET`, `NEXTAUTH_URL=https://mylos.cyou`, `AUTH_TRUST_HOST=true`  
 6. **HTTPS** — automatic on Vercel  
 7. **Indexes** — Mongoose schemas declare unique indexes (`email`, `caseReference`, `shortCode`)  
 8. **Backups** — enable Atlas continuous backup  
@@ -112,7 +115,7 @@ One deployment serves all short-code subdomains. Do **not** create a project per
 
 1. Sign in → **New Investigation**
 2. Upload image → **Generate Protected Link**
-3. Share `https://{code}.oals.online`
+3. Share `https://mylos.cyou/l/{code}`
 4. View access events and consented locations on the case map
 
 ### Recipient

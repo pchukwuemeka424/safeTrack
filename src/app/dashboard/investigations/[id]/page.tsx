@@ -151,9 +151,15 @@ export default function InvestigationDetailPage() {
   }
 
   function copyUrl(shortCode: string) {
-    const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "oals.online";
-    const protocol = root.includes("localhost") ? "http" : "https";
-    const url = `${protocol}://${shortCode}.${root}`;
+    const url =
+      // Prefer server-built absolute URL shape via env
+      process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true"
+        ? (() => {
+            const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "mylos.cyou";
+            const protocol = root.includes("localhost") ? "http" : "https";
+            return `${protocol}://${shortCode}.${root}`;
+          })()
+        : `${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "")}/l/${shortCode}`;
     navigator.clipboard.writeText(url);
     setCopied(shortCode);
     setTimeout(() => setCopied(null), 2000);
@@ -229,7 +235,9 @@ export default function InvestigationDetailPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <code className="text-sm text-oals-accent">
-                    {link.shortCode}.oals.online
+                    {process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true"
+                      ? `${link.shortCode}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || "mylos.cyou"}`
+                      : `${(process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") || "…"}/l/${link.shortCode}`}
                   </code>
                   <Badge
                     tone={

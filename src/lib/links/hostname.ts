@@ -3,15 +3,16 @@ import { env } from "@/lib/utils/env";
 /**
  * Extract investigation short code from hostname.
  * Examples:
- *   x7k29.oals.online -> x7k29
+ *   x7k29.mylos.cyou -> x7k29
  *   x7k29.localhost:3000 -> x7k29 (dev)
- *   oals.online -> null (root)
- *   app.oals.online -> null (app subdomain)
- *   www.oals.online -> null
+ *   mylos.cyou -> null (root)
+ *   app.mylos.cyou -> null (app subdomain)
+ *   www.mylos.cyou -> null
  */
 function configuredRoots(): string[] {
-  const configured = env.rootDomain.split(":")[0]?.toLowerCase() || "oals.online";
-  const roots = new Set<string>(["oals.online", configured]);
+  const configured =
+    env.rootDomain.split(":")[0]?.toLowerCase() || "mylos.cyou";
+  const roots = new Set<string>(["mylos.cyou", configured]);
   // Ignore localhost as a multi-label production-style root
   roots.delete("localhost");
   return [...roots];
@@ -29,13 +30,18 @@ export function extractShortCodeFromHost(host: string): string | null {
   }
 
   for (const root of configuredRoots()) {
-    if (hostname === root || hostname === `www.${root}` || hostname === `app.${root}`) {
+    if (
+      hostname === root ||
+      hostname === `www.${root}` ||
+      hostname === `app.${root}`
+    ) {
       return null;
     }
 
     if (hostname.endsWith(`.${root}`)) {
       const sub = hostname.slice(0, -(root.length + 1));
-      if (!sub || sub.includes(".") || sub === "www" || sub === "app") return null;
+      if (!sub || sub.includes(".") || sub === "www" || sub === "app")
+        return null;
       return isValidShortCode(sub) ? sub : null;
     }
   }
@@ -49,7 +55,7 @@ export function isValidShortCode(code: string): boolean {
 
 export function isAppHost(host: string): boolean {
   const hostname = host.split(":")[0]?.toLowerCase() || "";
-  const root = env.rootDomain.split(":")[0]?.toLowerCase() || "oals.online";
+  const root = env.rootDomain.split(":")[0]?.toLowerCase() || "mylos.cyou";
   return (
     hostname === `app.${root}` ||
     hostname === "app.localhost" ||
@@ -58,8 +64,22 @@ export function isAppHost(host: string): boolean {
   );
 }
 
+/**
+ * Prefer path-based links (`/l/{code}`) — works on Vercel without wildcard DNS.
+ * Set NEXT_PUBLIC_USE_SUBDOMAIN_LINKS=true only when `*.mylos.cyou` is configured.
+ */
 export function buildLinkUrl(shortCode: string): string {
-  const root = env.rootDomain;
-  const protocol = env.isProd || root.includes("oals.online") ? "https" : "http";
-  return `${protocol}://${shortCode.toLowerCase()}.${root}`;
+  const code = shortCode.toLowerCase();
+
+  if (process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true") {
+    const root = env.rootDomain;
+    const protocol =
+      env.isProd || (!root.includes("localhost") && !root.startsWith("127."))
+        ? "https"
+        : "http";
+    return `${protocol}://${code}.${root}`;
+  }
+
+  const base = env.appUrl.replace(/\/$/, "") || "http://localhost:3000";
+  return `${base}/l/${code}`;
 }
