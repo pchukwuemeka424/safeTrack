@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --oals-bg: #f7f8fa;
+  --oals-surface: #ffffff;
+  --oals-surface-elevated: #ffffff;
+  --oals-border: #e2e8f0;
+  --oals-border-subtle: #eef2f7;
+  --oals-text: #0f172a;
+  --oals-text-muted: #475569;
+  --oals-text-dim: #64748b;
+  --oals-accent: #ea580c;
+  --oals-accent-hover: #c2410c;
+  --oals-accent-soft: rgba(234, 88, 12, 0.1);
+  --oals-success: #16a34a;
+  --oals-warning: #ca8a04;
+  --oals-danger: #dc2626;
+  --oals-info: #0284c7;
+  --background: var(--oals-bg);
+  --foreground: var(--oals-text);
+  --radius: 0.5rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-oals-bg: var(--oals-bg);
+  --color-oals-surface: var(--oals-surface);
+  --color-oals-surface-elevated: var(--oals-surface-elevated);
+  --color-oals-border: var(--oals-border);
+  --color-oals-text: var(--oals-text);
+  --color-oals-muted: var(--oals-text-muted);
+  --color-oals-dim: var(--oals-text-dim);
+  --color-oals-accent: var(--oals-accent);
+  --color-oals-accent-hover: var(--oals-accent-hover);
+  --color-oals-success: var(--oals-success);
+  --color-oals-warning: var(--oals-warning);
+  --color-oals-danger: var(--oals-danger);
+  --color-oals-info: var(--oals-info);
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-space-grotesk);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--oals-bg);
+  color: var(--oals-text);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--oals-accent);
+  color: #ffffff;
+}
+
+.oals-grid-bg {
+  background-color: var(--oals-bg);
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.oals-radial {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(234, 88, 12, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(2, 132, 199, 0.05), transparent);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes unlock-clear {
+  from {
+    filter: blur(24px);
+    transform: scale(1.02);
+  }
+  to {
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out both;
+}
+
+.animate-unlock {
+  animation: unlock-clear 1.2s ease-out both;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--oals-accent);
+  outline-offset: 2px;
 }
