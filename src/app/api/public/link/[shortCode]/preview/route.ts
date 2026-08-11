@@ -28,8 +28,8 @@ async function placeholderOg(): Promise<Buffer> {
 }
 
 /**
- * Stable OG/crawler preview: blurred media cropped to 1200×630.
- * No location consent required. Never serves the clear original.
+ * Stable OG/crawler preview: clear media cropped to 1200×630 for WhatsApp/Facebook.
+ * No location consent required. Uses the non-blurred thumbnail (or original).
  */
 export async function GET(
   req: NextRequest,
@@ -78,7 +78,9 @@ export async function GET(
 
     await connectDb();
     const image = await ImageAsset.findById(link.imageId);
-    if (!image?.blurStorageKey) {
+    const storageKey =
+      image?.thumbnailStorageKey || image?.storageKey || null;
+    if (!storageKey) {
       const fallback = await placeholderOg();
       return new NextResponse(new Uint8Array(fallback), {
         status: 200,
@@ -86,13 +88,13 @@ export async function GET(
       });
     }
 
-    const data = await readStoredBlob(image.blurStorageKey);
+    const data = await readStoredBlob(storageKey);
 
     // WhatsApp/Facebook expect ~1200×630 JPEGs with explicit dimensions.
     const og = await sharp(data)
       .rotate()
       .resize(OG_WIDTH, OG_HEIGHT, { fit: "cover", position: "centre" })
-      .jpeg({ quality: 75, mozjpeg: true })
+      .jpeg({ quality: 85, mozjpeg: true })
       .toBuffer();
 
     return new NextResponse(new Uint8Array(og), {
