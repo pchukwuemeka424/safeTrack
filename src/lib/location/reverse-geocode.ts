@@ -2,10 +2,12 @@ import { env } from "@/lib/utils/env";
 import { logger } from "@/lib/utils/logger";
 
 export interface ReverseGeocodeResult {
-  /** Human-readable place label */
+  /** Human-readable place label for the exact GPS point */
   address: string | null;
   city: string | null;
   country: string | null;
+  /** Optional nearby business (not used as primary address) */
+  nearestLandmark?: string | null;
 }
 
 type AddressComponent = {
@@ -39,80 +41,82 @@ function pickCity(props: Record<string, unknown>): string | null {
   return null;
 }
 
+function formatNominatimAddress(
+  displayName: string | undefined,
+  addr: Record<string, string>,
+): string | null {
+  const house = addr.house_number?.trim();
+  const road = addr.road?.trim() || addr.pedestrian?.trim() || addr.path?.trim();
+  const suburb =
+    addr.suburb?.trim() ||
+    addr.neighbourhood?.trim() ||
+    addr.quarter?.trim() ||
+    addr.city_district?.trim();
+  const city =
+    addr.city?.trim() ||
+    addr.town?.trim() ||
+    addr.village?.trim() ||
+    addr.municipality?.trim();
+  const postcode = addr.postcode?.trim();
+  const country = addr.country?.trim();
+
+  const street = [house, road].filter(Boolean).join(" ");
+  const parts = [street || null, suburb, city, postcode, country].filter(
+    Boolean,
+  ) as string[];
+
+  if (parts.length >= 2) return parts.join(", ");
+  return displayName?.trim() || null;
+}
+
 /**
- * Resolve GPS → address via RapidAPI Google Places Nearby Search.
- * Autocomplete is for typed queries; nearby search is what maps coords to a place.
+ * True reverse geocode of the GPS point (street / road), not nearest shop.
  */
-async function reverseGeocodeRapidApiPlaces(
+async function reverseGeocodeNominatim(
   latitude: number,
   longitude: number,
 ): Promise<ReverseGeocodeResult | null> {
-  if (!env.rapidApiKey) return null;
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("lat", String(latitude));
+  url.searchParams.set("lon", String(longitude));
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  // Building / house-level when available
+  url.searchParams.set("zoom", "18");
+  url.searchParams.set("namedetails", "0");
 
-  const tryNearby = async (radiusMeters: number) => {
-    const res = await fetch(
-      `https://${env.rapidApiGooglePlacesHost}/v1/places:searchNearby`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-rapidapi-key": env.rapidApiKey,
-          "x-rapidapi-host": env.rapidApiGooglePlacesHost,
-          "X-Goog-FieldMask":
-            "places.displayName,places.formattedAddress,places.shortFormattedAddress,places.addressComponents,places.location,places.types",
-        },
-        body: JSON.stringify({
-          maxResultCount: 1,
-          rankPreference: "DISTANCE",
-          locationRestriction: {
-            circle: {
-              center: { latitude, longitude },
-              radius: radiusMeters,
-            },
-          },
-        }),
-        signal: AbortSignal.timeout(10000),
-      },
-    );
+  const res = await fetch(url.toString(), {
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        "OALS-LocationSafeguarding/1.0 (investigation; contact@mylos.cyou)",
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) return null;
 
-    if (!res.ok) {
-      logger.warn("RapidAPI Places nearby search failed", {
-        status: res.status,
-        radiusMeters,
-      });
-      return null;
-    }
-
-    const data = (await res.json()) as {
-      places?: Array<{
-        formattedAddress?: string;
-        shortFormattedAddress?: string;
-        displayName?: { text?: string };
-        addressComponents?: AddressComponent[];
-      }>;
-    };
-
-    const place = data.places?.[0];
-    if (!place) return null;
-
-    const components = place.addressComponents || [];
-    const city =
-      componentByType(components, "locality") ||
-      componentByType(components, "postal_town") ||
-      componentByType(components, "administrative_area_level_2");
-    const country = componentByType(components, "country");
-
-    const address =
-      place.formattedAddress?.trim() ||
-      place.shortFormattedAddress?.trim() ||
-      place.displayName?.text?.trim() ||
-      null;
-
-    if (!address) return null;
-    return { address, city, country } satisfies ReverseGeocodeResult;
+  const data = (await res.json()) as {
+    display_name?: string;
+    address?: Record<string, string>;
   };
 
-  return (await tryNearby(75)) || (await tryNearby(250));
+  const addr = data.address || {};
+  const city =
+    addr.city ||
+    addr.town ||
+    addr.village ||
+    addr.municipality ||
+    addr.county ||
+    null;
+
+  const address = formatNominatimAddress(data.display_name, addr);
+  if (!address) return null;
+
+  return {
+    address,
+    city: city?.trim() || null,
+    country: addr.country?.trim() || null,
+  };
 }
 
 async function reverseGeocodeMapbox(
@@ -125,7 +129,8 @@ async function reverseGeocodeMapbox(
   );
   url.searchParams.set("access_token", token);
   url.searchParams.set("limit", "1");
-  url.searchParams.set("types", "address,place,locality,neighborhood,poi");
+  // Prefer street addresses over POIs
+  url.searchParams.set("types", "address,street,place");
 
   const res = await fetch(url.toString(), {
     signal: AbortSignal.timeout(8000),
@@ -158,51 +163,62 @@ async function reverseGeocodeMapbox(
   };
 }
 
-async function reverseGeocodeNominatim(
+/**
+ * Nearby business/POI only — used as optional context, never as primary address.
+ */
+async function nearestLandmarkRapidApi(
   latitude: number,
   longitude: number,
-): Promise<ReverseGeocodeResult | null> {
-  const url = new URL("https://nominatim.openstreetmap.org/reverse");
-  url.searchParams.set("lat", String(latitude));
-  url.searchParams.set("lon", String(longitude));
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("addressdetails", "1");
+): Promise<string | null> {
+  if (!env.rapidApiKey) return null;
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/json",
-      "User-Agent":
-        "OALS-LocationSafeguarding/1.0 (investigation; contact@mylos.cyou)",
-    },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) return null;
+  try {
+    const res = await fetch(
+      `https://${env.rapidApiGooglePlacesHost}/v1/places:searchNearby`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-rapidapi-key": env.rapidApiKey,
+          "x-rapidapi-host": env.rapidApiGooglePlacesHost,
+          "X-Goog-FieldMask":
+            "places.displayName,places.formattedAddress,places.location",
+        },
+        body: JSON.stringify({
+          maxResultCount: 1,
+          rankPreference: "DISTANCE",
+          locationRestriction: {
+            circle: {
+              center: { latitude, longitude },
+              radius: 40,
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!res.ok) return null;
 
-  const data = (await res.json()) as {
-    display_name?: string;
-    address?: Record<string, string>;
-  };
-
-  const addr = data.address || {};
-  const city =
-    addr.city ||
-    addr.town ||
-    addr.village ||
-    addr.municipality ||
-    addr.county ||
-    null;
-
-  return {
-    address: data.display_name?.trim() || null,
-    city: city?.trim() || null,
-    country: addr.country?.trim() || null,
-  };
+    const data = (await res.json()) as {
+      places?: Array<{
+        formattedAddress?: string;
+        displayName?: { text?: string };
+      }>;
+    };
+    const place = data.places?.[0];
+    if (!place) return null;
+    const name = place.displayName?.text?.trim();
+    const addr = place.formattedAddress?.trim();
+    if (name && addr) return `${name} (${addr})`;
+    return name || addr || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Resolve GPS coordinates to a human-readable address.
- * Order: RapidAPI Google Places → Mapbox → Nominatim.
- * Failures are non-fatal — coordinates are still the primary evidence.
+ * Resolve GPS coordinates to a human-readable address for the exact point.
+ * Order: Nominatim reverse → Mapbox reverse → (optional landmark only).
  */
 export async function reverseGeocode(
   latitude: number,
@@ -212,20 +228,27 @@ export async function reverseGeocode(
     address: null,
     city: null,
     country: null,
+    nearestLandmark: null,
   };
 
   try {
-    const rapid = await reverseGeocodeRapidApiPlaces(latitude, longitude);
-    if (rapid?.address) return rapid;
+    const nominatim = await reverseGeocodeNominatim(latitude, longitude);
+    if (nominatim?.address) {
+      const landmark = await nearestLandmarkRapidApi(latitude, longitude);
+      return { ...nominatim, nearestLandmark: landmark };
+    }
 
     const token = env.mapboxToken || env.publicMapboxToken;
     if (token) {
       const mapped = await reverseGeocodeMapbox(latitude, longitude, token);
-      if (mapped?.address) return mapped;
+      if (mapped?.address) {
+        const landmark = await nearestLandmarkRapidApi(latitude, longitude);
+        return { ...mapped, nearestLandmark: landmark };
+      }
     }
 
-    const nominatim = await reverseGeocodeNominatim(latitude, longitude);
-    if (nominatim) return nominatim;
+    // Last resort only: do not prefer POI shops as the main address.
+    logger.warn("Street reverse geocode unavailable; coords kept without POI address");
   } catch (error) {
     logger.warn("Reverse geocode failed", {
       error: error instanceof Error ? error.message : "unknown",
@@ -234,3 +257,6 @@ export async function reverseGeocode(
 
   return empty;
 }
+
+// Keep unused helper referenced for type compatibility in older call sites
+void componentByType;
