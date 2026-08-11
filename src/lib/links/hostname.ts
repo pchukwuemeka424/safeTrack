@@ -64,6 +64,23 @@ export function isAppHost(host: string): boolean {
   );
 }
 
+function publicAppBaseUrl(): string {
+  const configured = (env.appUrl || "").replace(/\/$/, "");
+  const looksLocal =
+    !configured ||
+    configured.includes("localhost") ||
+    configured.includes("127.0.0.1");
+
+  // Never emit localhost share links from a deployed environment.
+  if (looksLocal && (env.isProd || process.env.VERCEL === "1")) {
+    const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+    if (vercelHost) return `https://${vercelHost.replace(/^https?:\/\//, "")}`;
+    return "https://www.mylos.cyou";
+  }
+
+  return configured || "http://localhost:3000";
+}
+
 /**
  * Prefer path-based links (`/l/{code}`) — works on Vercel without wildcard DNS.
  * Set NEXT_PUBLIC_USE_SUBDOMAIN_LINKS=true only when `*.mylos.cyou` is configured.
@@ -72,7 +89,13 @@ export function buildLinkUrl(shortCode: string): string {
   const code = shortCode.toLowerCase();
 
   if (process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true") {
-    const root = env.rootDomain;
+    let root = env.rootDomain;
+    if (
+      (env.isProd || process.env.VERCEL === "1") &&
+      (root.includes("localhost") || root.startsWith("127."))
+    ) {
+      root = "mylos.cyou";
+    }
     const protocol =
       env.isProd || (!root.includes("localhost") && !root.startsWith("127."))
         ? "https"
@@ -80,6 +103,5 @@ export function buildLinkUrl(shortCode: string): string {
     return `${protocol}://${code}.${root}`;
   }
 
-  const base = env.appUrl.replace(/\/$/, "") || "http://localhost:3000";
-  return `${base}/l/${code}`;
+  return `${publicAppBaseUrl()}/l/${code}`;
 }

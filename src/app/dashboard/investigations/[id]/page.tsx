@@ -150,16 +150,33 @@ export default function InvestigationDetailPage() {
     load();
   }
 
+  function shareBaseUrl() {
+    const configured = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    if (
+      configured &&
+      !configured.includes("localhost") &&
+      !configured.includes("127.0.0.1")
+    ) {
+      return configured;
+    }
+    if (typeof window !== "undefined") {
+      return window.location.origin;
+    }
+    return "https://www.mylos.cyou";
+  }
+
   function copyUrl(shortCode: string) {
     const url =
-      // Prefer server-built absolute URL shape via env
       process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true"
         ? (() => {
-            const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "mylos.cyou";
-            const protocol = root.includes("localhost") ? "http" : "https";
-            return `${protocol}://${shortCode}.${root}`;
+            const root =
+              process.env.NEXT_PUBLIC_ROOT_DOMAIN &&
+              !process.env.NEXT_PUBLIC_ROOT_DOMAIN.includes("localhost")
+                ? process.env.NEXT_PUBLIC_ROOT_DOMAIN
+                : "mylos.cyou";
+            return `https://${shortCode}.${root}`;
           })()
-        : `${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "")}/l/${shortCode}`;
+        : `${shareBaseUrl()}/l/${shortCode}`;
     navigator.clipboard.writeText(url);
     setCopied(shortCode);
     setTimeout(() => setCopied(null), 2000);
@@ -236,8 +253,13 @@ export default function InvestigationDetailPage() {
                 <div className="flex items-center justify-between gap-2">
                   <code className="text-sm text-oals-accent">
                     {process.env.NEXT_PUBLIC_USE_SUBDOMAIN_LINKS === "true"
-                      ? `${link.shortCode}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || "mylos.cyou"}`
-                      : `${(process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") || "…"}/l/${link.shortCode}`}
+                      ? `${link.shortCode}.${
+                          process.env.NEXT_PUBLIC_ROOT_DOMAIN &&
+                          !process.env.NEXT_PUBLIC_ROOT_DOMAIN.includes("localhost")
+                            ? process.env.NEXT_PUBLIC_ROOT_DOMAIN
+                            : "mylos.cyou"
+                        }`
+                      : `/l/${link.shortCode}`}
                   </code>
                   <Badge
                     tone={
