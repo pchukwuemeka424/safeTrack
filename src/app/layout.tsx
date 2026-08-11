@@ -26,8 +26,18 @@ export const metadata: Metadata = {
   description:
     "Create controlled evidence links, collect consent-based location information, and manage investigation events from one secure platform.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://mylos.cyou",
+    process.env.NEXT_PUBLIC_APP_URL &&
+      !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+      ? process.env.NEXT_PUBLIC_APP_URL
+      : "https://www.mylos.cyou",
   ),
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({

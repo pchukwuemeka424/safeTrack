@@ -6,18 +6,8 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const shortCode = extractShortCodeFromHost(host);
 
-  // Path links: /l/{code} → public investigation page
-  const pathMatch = pathname.match(/^\/l\/([A-Za-z0-9]{4,16})\/?$/i);
-  if (pathMatch?.[1] && !pathname.startsWith("/api")) {
-    const response = NextResponse.rewrite(
-      new URL(
-        `/public/investigation-link?code=${encodeURIComponent(pathMatch[1].toLowerCase())}`,
-        request.url,
-      ),
-    );
-    applySecurityHeaders(response);
-    return response;
-  }
+  // Path links `/l/{code}` are handled by `src/app/l/[shortCode]` so OG metadata
+  // is generated on the real route (required for WhatsApp/Facebook previews).
 
   const response =
     shortCode &&
